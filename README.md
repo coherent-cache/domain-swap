@@ -33,7 +33,7 @@ A Firefox extension that automatically redirects domains based on custom pattern
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/domain-swap.git
+git clone https://github.com/coherent-cache/domain-swap.git
 cd domain-swap
 ```
 
