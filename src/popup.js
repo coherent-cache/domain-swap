@@ -3,7 +3,99 @@ document.addEventListener("DOMContentLoaded", () => {
   const domainsList = document.getElementById("domainsList");
   const emptyState = document.getElementById("emptyState");
 
+  function createDomainElement(domain) {
+    // Create main container
+    const item = document.createElement("div");
+    item.className = "domain-item";
+
+    // Create domain header
+    const header = document.createElement("div");
+    header.className = "domain-header";
+
+    // Add domain text
+    const domainText = document.createElement("strong");
+    domainText.textContent = domain;
+
+    // Add remove button
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "remove-btn";
+    removeBtn.textContent = "Remove";
+    removeBtn.addEventListener("click", () => removeDomain(domain));
+
+    // Create patterns container
+    const rulesContainer = document.createElement("div");
+    rulesContainer.className = "domain-rules";
+
+    // Create match pattern group
+    const matchGroup = document.createElement("div");
+    matchGroup.className = "pattern-group";
+
+    const matchLabel = document.createElement("label");
+    matchLabel.textContent = "Match Pattern (regex):";
+
+    const matchInput = document.createElement("input");
+    matchInput.type = "text";
+    matchInput.className = "match-pattern";
+    matchInput.placeholder = "e.g. ^example\\.com$";
+    matchInput.dataset.domain = domain;
+
+    // Create replace pattern group
+    const replaceGroup = document.createElement("div");
+    replaceGroup.className = "pattern-group";
+
+    const replaceLabel = document.createElement("label");
+    replaceLabel.textContent = "Replace Pattern:";
+
+    const replaceInput = document.createElement("input");
+    replaceInput.type = "text";
+    replaceInput.className = "replace-pattern";
+    replaceInput.placeholder = "e.g. testexample.com";
+    replaceInput.dataset.domain = domain;
+
+    // Add event listeners for pattern changes
+    [matchInput, replaceInput].forEach((input) => {
+      input.addEventListener("change", () => {
+        browser.storage.local.set({
+          [`patterns_${domain}`]: {
+            match: matchInput.value,
+            replace: replaceInput.value,
+          },
+        });
+      });
+    });
+
+    // Load existing patterns
+    browser.storage.local.get(`patterns_${domain}`).then((result) => {
+      const patterns = result[`patterns_${domain}`] || {};
+      matchInput.value = patterns.match || "";
+      replaceInput.value = patterns.replace || "";
+    });
+
+    // Assemble the DOM structure
+    header.appendChild(domainText);
+    header.appendChild(removeBtn);
+
+    matchGroup.appendChild(matchLabel);
+    matchGroup.appendChild(matchInput);
+
+    replaceGroup.appendChild(replaceLabel);
+    replaceGroup.appendChild(replaceInput);
+
+    rulesContainer.appendChild(matchGroup);
+    rulesContainer.appendChild(replaceGroup);
+
+    item.appendChild(header);
+    item.appendChild(rulesContainer);
+
+    return item;
+  }
+
   function updateDomainsList(domains) {
+    // Clear existing content
+    while (domainsList.firstChild) {
+      domainsList.removeChild(domainsList.firstChild);
+    }
+
     if (!domains || domains.length === 0) {
       domainsList.style.display = "none";
       emptyState.style.display = "block";
@@ -12,60 +104,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     domainsList.style.display = "block";
     emptyState.style.display = "none";
-    domainsList.innerHTML = "";
 
     domains.forEach((domain) => {
-      const item = document.createElement("div");
-      item.className = "domain-item";
-      item.innerHTML = `
-        <div class="domain-header">
-          <strong>${domain}</strong>
-          <button class="remove-btn">Remove</button>
-        </div>
-        <div class="domain-rules">
-          <div class="pattern-group">
-            <label>Match Pattern (regex):</label>
-            <input type="text" class="match-pattern"
-                   placeholder="e.g. ^example\\.com$"
-                   data-domain="${domain}">
-          </div>
-          <div class="pattern-group">
-            <label>Replace Pattern:</label>
-            <input type="text" class="replace-pattern"
-                   placeholder="e.g. testexample.com"
-                   data-domain="${domain}">
-          </div>
-        </div>
-      `;
-
-      const matchInput = item.querySelector(".match-pattern");
-      const replaceInput = item.querySelector(".replace-pattern");
-
-      // Load existing patterns
-      browser.storage.local.get(`patterns_${domain}`).then((result) => {
-        const patterns = result[`patterns_${domain}`] || {};
-        matchInput.value = patterns.match || "";
-        replaceInput.value = patterns.replace || "";
-      });
-
-      // Save patterns when changed
-      [matchInput, replaceInput].forEach((input) => {
-        input.addEventListener("change", () => {
-          const domain = input.dataset.domain;
-          browser.storage.local.set({
-            [`patterns_${domain}`]: {
-              match: matchInput.value,
-              replace: replaceInput.value,
-            },
-          });
-        });
-      });
-
-      item.querySelector(".remove-btn").addEventListener("click", () => {
-        removeDomain(domain);
-      });
-
-      domainsList.appendChild(item);
+      domainsList.appendChild(createDomainElement(domain));
     });
   }
 
