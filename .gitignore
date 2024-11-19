@@ -1,2 +1,36 @@
-*.zip
+# System Files
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime*
+*.atom*
+
+# Build and package files
+web-ext-artifacts/
+dist/
 *.xpi
+*.zip
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Icons
+src/icons/*.png
