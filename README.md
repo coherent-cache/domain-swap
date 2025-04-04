@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="assets/icon-light.svg" alt="Domain Swap Logo" width="200"/>
+<img src="assets/icon.svg" alt="Domain Swap Logo" width="200"/>
 
 [![Mozilla Add-on](https://img.shields.io/amo/v/domain-swap1)](https://addons.mozilla.org/firefox/addon/domain-swap1/)
 [![Mozilla Add-on](https://img.shields.io/amo/users/domain-swap1)](https://addons.mozilla.org/firefox/addon/domain-swap1/)
