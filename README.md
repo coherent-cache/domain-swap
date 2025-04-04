@@ -11,7 +11,7 @@
 
 </div>
 
-A Firefox extension that automatically redirects domains based on custom patterns. Perfect for developers working with multiple environments or anyone needing to quickly switch between different domain variations.
+A browser extension for Firefox and Chrome that automatically redirects domains based on custom patterns. Perfect for developers working with multiple environments or anyone needing to quickly switch between different domain variations.
 
 ## Features
 
@@ -20,7 +20,8 @@ A Firefox extension that automatically redirects domains based on custom pattern
 - 🎯 Per-domain configuration
 - 🔒 Secure local storage
 - ⚡ Zero performance impact on non-matching domains
-- 🌓 Light/Dark theme support
+- 🌓 Light/Dark/System theme support
+- 🌐 Cross-browser compatibility (Firefox & Chrome)
 
 ## Installation
 
@@ -28,6 +29,10 @@ A Firefox extension that automatically redirects domains based on custom pattern
 
 1. Visit [Domain Swap on Mozilla Add-ons](https://addons.mozilla.org/firefox/addon/domain-swap1/)
 2. Click "Add to Firefox"
+
+### From Chrome Web Store
+
+*Coming soon*
 
 ### From Source
 
@@ -51,7 +56,13 @@ npm run build
 - Navigate to `about:debugging`
 - Click "This Firefox"
 - Click "Load Temporary Add-on"
-- Select any file in the `dist` directory
+- Select any file in the `dist/firefox` directory
+
+5. Load in Chrome:
+- Navigate to `chrome://extensions`
+- Enable "Developer mode"
+- Click "Load unpacked"
+- Select the `dist/chrome` directory
 
 ## Usage
 
@@ -74,7 +85,7 @@ npm run build
 
 - Node.js (v14 or higher)
 - npm (v6 or higher)
-- Firefox Browser
+- Firefox Browser and/or Chrome Browser
 
 ### Setup Development Environment
 
@@ -82,8 +93,11 @@ npm run build
 # Install dependencies
 npm install
 
-# Start development mode
+# Start development mode (Firefox)
 npm run dev
+
+# Start development mode (Chrome)
+npm run dev:chrome
 
 # Run tests
 npm test
@@ -95,8 +109,14 @@ npm run lint
 ## Building for Production
 
 ```bash
-# Create production build
+# Create production build (both Firefox and Chrome)
 npm run build
+
+# Create Firefox-only build
+npm run build:firefox
+
+# Create Chrome-only build
+npm run build:chrome
 ```
 
 ## Security
@@ -119,6 +139,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - 💬 [Discussions](https://github.com/coherent-cache/domain-swap/discussions)
 
 ## Release Notes
+
+### v1.1.0 (2025-04-05)
+- Added Chrome browser support
+- Cross-browser compatibility layer
+- System theme support
+- Improved error handling
 
 ### v1.0.0 (2024-11-20)
 - Initial release

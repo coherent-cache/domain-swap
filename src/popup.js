@@ -1,184 +1,282 @@
 // popup.js
-document.addEventListener("DOMContentLoaded", () => {
-  const domainsList = document.getElementById("domainsList");
-  const emptyState = document.getElementById("emptyState");
+const DEFAULT_DOMAINS = [
+  {
+    domain: "medium.com",
+    match: "^(.*\\.)?medium\\.com$",
+    replace: "readmedium.com",
+  },
+  {
+    domain: "towardsdatascience.com",
+    match: "^towardsdatascience\\.com$",
+    replace: "readmedium.com",
+  },
+  {
+    domain: "hackernoon.com",
+    match: "^hackernoon\\.com$",
+    replace: "readmedium.com",
+  },
+  {
+    domain: "medium.freecodecamp.org",
+    match: "^medium\\.freecodecamp\\.org$",
+    replace: "readmedium.com",
+  },
+];
 
-  function createDomainElement(domain) {
-    // Create main container
-    const item = document.createElement("div");
-    item.className = "domain-item";
+// Use browserAPI from polyfill
+const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
 
-    // Create domain header
-    const header = document.createElement("div");
-    header.className = "domain-header";
+document.addEventListener("DOMContentLoaded", async () => {
+  // Theme handling
+  function setTheme(theme) {
+    const html = document.documentElement;
+    const prefersDark = window.matchMedia(
+      "(prefers-color-scheme: dark)",
+    ).matches;
 
-    // Add domain text
-    const domainText = document.createElement("strong");
-    domainText.textContent = domain;
-
-    // Add remove button
-    const removeBtn = document.createElement("button");
-    removeBtn.className = "remove-btn";
-    removeBtn.textContent = "Remove";
-    removeBtn.addEventListener("click", () => removeDomain(domain));
-
-    // Create patterns container
-    const rulesContainer = document.createElement("div");
-    rulesContainer.className = "domain-rules";
-
-    // Create match pattern group
-    const matchGroup = document.createElement("div");
-    matchGroup.className = "pattern-group";
-
-    const matchLabel = document.createElement("label");
-    matchLabel.textContent = "Match Pattern (regex):";
-
-    const matchInput = document.createElement("input");
-    matchInput.type = "text";
-    matchInput.className = "match-pattern";
-    matchInput.placeholder = "e.g. ^example\\.com$";
-    matchInput.dataset.domain = domain;
-
-    // Create replace pattern group
-    const replaceGroup = document.createElement("div");
-    replaceGroup.className = "pattern-group";
-
-    const replaceLabel = document.createElement("label");
-    replaceLabel.textContent = "Replace Pattern:";
-
-    const replaceInput = document.createElement("input");
-    replaceInput.type = "text";
-    replaceInput.className = "replace-pattern";
-    replaceInput.placeholder = "e.g. testexample.com";
-    replaceInput.dataset.domain = domain;
-
-    // Add event listeners for pattern changes
-    [matchInput, replaceInput].forEach((input) => {
-      input.addEventListener("change", () => {
-        browser.storage.local.set({
-          [`patterns_${domain}`]: {
-            match: matchInput.value,
-            replace: replaceInput.value,
-          },
-        });
-      });
-    });
-
-    // Load existing patterns
-    browser.storage.local.get(`patterns_${domain}`).then((result) => {
-      const patterns = result[`patterns_${domain}`] || {};
-      matchInput.value = patterns.match || "";
-      replaceInput.value = patterns.replace || "";
-    });
-
-    // Assemble the DOM structure
-    header.appendChild(domainText);
-    header.appendChild(removeBtn);
-
-    matchGroup.appendChild(matchLabel);
-    matchGroup.appendChild(matchInput);
-
-    replaceGroup.appendChild(replaceLabel);
-    replaceGroup.appendChild(replaceInput);
-
-    rulesContainer.appendChild(matchGroup);
-    rulesContainer.appendChild(replaceGroup);
-
-    item.appendChild(header);
-    item.appendChild(rulesContainer);
-
-    return item;
-  }
-
-  function updateDomainsList(domains) {
-    // Clear existing content
-    while (domainsList.firstChild) {
-      domainsList.removeChild(domainsList.firstChild);
+    let activeTheme = theme;
+    if (theme === "system") {
+      activeTheme = prefersDark ? "dark" : "light";
     }
 
-    if (!domains || domains.length === 0) {
-      domainsList.style.display = "none";
-      emptyState.style.display = "block";
+    html.setAttribute("data-theme", activeTheme);
+    document.querySelectorAll(".theme-button").forEach((btn) => {
+      btn.classList.remove("active");
+    });
+    document.getElementById(`${theme}Theme`).classList.add("active");
+
+    // Update all themed icons
+    document.querySelectorAll("img[data-theme-light]").forEach((img) => {
+      const themeVariant = activeTheme === "dark" ? "dark" : "light";
+      img.src =
+        img.dataset[
+          `theme${themeVariant.charAt(0).toUpperCase() + themeVariant.slice(1)}`
+        ];
+    });
+
+    browserAPI.storage.local.set({ theme });
+  }
+
+  // Load saved theme
+  try {
+    const { theme } = await browserAPI.storage.local.get("theme");
+    if (theme) {
+      setTheme(theme);
+    }
+  } catch (error) {
+    console.error("Error loading theme:", error);
+  }
+
+  // Theme button listeners
+  ["light", "dark", "system"].forEach((theme) => {
+    document
+      .getElementById(`${theme}Theme`)
+      .addEventListener("click", () => setTheme(theme));
+  });
+
+  // Status message handling
+  function showStatus(message, type = "success") {
+    const statusEl = document.getElementById("statusMessage");
+    statusEl.textContent = message;
+    statusEl.className = `status-message status-${type}`;
+    statusEl.style.display = "block";
+    setTimeout(() => {
+      statusEl.style.display = "none";
+    }, 3000);
+  }
+
+  // Initialize default domains if not already set
+  try {
+    const { initialized } = await browserAPI.storage.local.get("initialized");
+    if (!initialized) {
+      for (const domain of DEFAULT_DOMAINS) {
+        await browserAPI.storage.local.set({
+          [`patterns_${domain.domain}`]: {
+            match: domain.match,
+            replace: domain.replace,
+          },
+        });
+      }
+      await browserAPI.storage.local.set({
+        initialized: true,
+        activeDomains: DEFAULT_DOMAINS.map((d) => d.domain),
+      });
+    }
+  } catch (error) {
+    console.error("Error initializing default domains:", error);
+    showStatus("Error initializing default domains", "error");
+  }
+
+  // Update domains list
+  async function updateDomainsList() {
+    const domainsList = document.getElementById("domainsList");
+    try {
+      const { activeDomains = [] } =
+        await browserAPI.storage.local.get("activeDomains");
+
+      domainsList.innerHTML = "";
+
+      if (!activeDomains.length) {
+        domainsList.innerHTML = `
+              <div class="empty-state">
+                  No domains added yet. Add a domain to start creating redirect rules.
+              </div>
+          `;
+        return;
+      }
+
+      for (const domain of activeDomains) {
+        const { [`patterns_${domain}`]: patterns } =
+          await browserAPI.storage.local.get(`patterns_${domain}`);
+        if (!patterns) continue;
+
+        const domainGroup = document.createElement("div");
+        domainGroup.className = "domain-group";
+
+        const currentTheme =
+          document.documentElement.getAttribute("data-theme") === "dark"
+            ? "dark"
+            : "light";
+
+        domainGroup.innerHTML = `
+              <div class="domain-header">
+                  <div class="domain-name">
+                      <img src="icons/actions/expand-${currentTheme}.png" alt="Expand" class="expand-icon icon"
+                          data-theme-light="icons/actions/expand-light.png"
+                          data-theme-dark="icons/actions/expand-dark.png">
+                      ${domain}
+                  </div>
+                  <div class="actions">
+                      <button class="edit-btn">
+                          <img src="icons/actions/edit-${currentTheme}.png" alt="Edit" class="icon"
+                              data-theme-light="icons/actions/edit-light.png"
+                              data-theme-dark="icons/actions/edit-dark.png">
+                          <span class="sr-only">Edit</span>
+                      </button>
+                      <button class="danger remove-btn">
+                          <img src="icons/actions/remove-${currentTheme}.png" alt="Remove" class="icon"
+                              data-theme-light="icons/actions/remove-light.png"
+                              data-theme-dark="icons/actions/remove-dark.png">
+                          <span class="sr-only">Remove</span>
+                      </button>
+                  </div>
+              </div>
+              <div class="domain-content">
+                  <div class="pattern-group">
+                      <div class="pattern-label">Match Pattern</div>
+                      <div class="pattern-value">${patterns.match}</div>
+                  </div>
+                  <div class="pattern-group">
+                      <div class="pattern-label">Replace Pattern</div>
+                      <div class="pattern-value">${patterns.replace}</div>
+                  </div>
+              </div>
+          `;
+
+        // Add event listeners
+        const header = domainGroup.querySelector(".domain-header");
+        const content = domainGroup.querySelector(".domain-content");
+
+        header.addEventListener("click", (e) => {
+          if (!e.target.closest(".actions")) {
+            header.classList.toggle("expanded");
+            content.classList.toggle("expanded");
+          }
+        });
+
+        domainGroup
+          .querySelector(".remove-btn")
+          .addEventListener("click", () => removeDomain(domain));
+        domainGroup
+          .querySelector(".edit-btn")
+          .addEventListener("click", () => editDomain(domain, patterns));
+
+        domainsList.appendChild(domainGroup);
+      }
+    } catch (error) {
+      console.error("Error updating domains list:", error);
+      showStatus("Error loading domains", "error");
+    }
+  }
+
+  // Add domain
+  async function addDomain(domain, match, replace) {
+    try {
+      const { activeDomains = [] } =
+        await browserAPI.storage.local.get("activeDomains");
+
+      await browserAPI.storage.local.set({
+        [`patterns_${domain}`]: { match, replace },
+        activeDomains: [...new Set([...activeDomains, domain])],
+      });
+
+      showStatus("Domain added successfully");
+      updateDomainsList();
+      return true;
+    } catch (error) {
+      console.error("Error adding domain:", error);
+      showStatus("Error adding domain", "error");
+      return false;
+    }
+  }
+
+  // Remove domain
+  async function removeDomain(domain) {
+    try {
+      const { activeDomains = [] } =
+        await browserAPI.storage.local.get("activeDomains");
+      await browserAPI.storage.local.remove(`patterns_${domain}`);
+      await browserAPI.storage.local.set({
+        activeDomains: activeDomains.filter((d) => d !== domain),
+      });
+      showStatus("Domain removed successfully");
+      updateDomainsList();
+    } catch (error) {
+      console.error("Error removing domain:", error);
+      showStatus("Error removing domain", "error");
+    }
+  }
+
+  // Edit domain
+  function editDomain(domain, patterns) {
+    document.getElementById("newDomain").value = domain;
+    document.getElementById("matchPattern").value = patterns.match;
+    document.getElementById("replacePattern").value = patterns.replace;
+  }
+
+  // Form handlers
+  document.getElementById("addDomain").addEventListener("click", async () => {
+    const domain = document.getElementById("newDomain").value.trim();
+    const match = document.getElementById("matchPattern").value.trim();
+    const replace = document.getElementById("replacePattern").value.trim();
+
+    if (!domain || !match || !replace) {
+      showStatus("Please fill in all fields", "error");
       return;
     }
 
-    domainsList.style.display = "block";
-    emptyState.style.display = "none";
-
-    domains.forEach((domain) => {
-      domainsList.appendChild(createDomainElement(domain));
-    });
-  }
-
-  function addDomain(domain) {
-    browser.storage.local
-      .get("activeDomains")
-      .then((result) => {
-        const domains = new Set(result.activeDomains || []);
-        domains.add(domain);
-        return browser.storage.local.set({
-          activeDomains: Array.from(domains),
-        });
-      })
-      .then(() => {
-        document.getElementById("newDomain").value = "";
-        loadDomains();
-      });
-  }
-
-  function removeDomain(domain) {
-    browser.storage.local
-      .get("activeDomains")
-      .then((result) => {
-        const domains = new Set(result.activeDomains || []);
-        domains.delete(domain);
-        return browser.storage.local.set({
-          activeDomains: Array.from(domains),
-        });
-      })
-      .then(loadDomains);
-  }
-
-  function loadDomains() {
-    browser.storage.local.get("activeDomains").then((result) => {
-      updateDomainsList(result.activeDomains || []);
-    });
-  }
-
-  // Load saved settings
-  browser.storage.local
-    .get(["matchPattern", "replacePattern"])
-    .then((result) => {
-      document.getElementById("matchPattern").value = result.matchPattern || "";
-      document.getElementById("replacePattern").value =
-        result.replacePattern || "";
-    });
-
-  loadDomains();
-
-  // Add domain
-  document.getElementById("addDomain").addEventListener("click", () => {
-    const domain = document.getElementById("newDomain").value.trim();
-    if (domain) {
-      addDomain(domain);
+    if (await addDomain(domain, match, replace)) {
+      document.getElementById("newDomain").value = "";
+      document.getElementById("matchPattern").value = "";
+      document.getElementById("replacePattern").value = "";
     }
   });
 
-  // Save patterns
-  document.getElementById("saveButton").addEventListener("click", () => {
-    const matchPattern = document.getElementById("matchPattern").value;
-    const replacePattern = document.getElementById("replacePattern").value;
-
-    browser.storage.local
-      .set({
-        matchPattern,
-        replacePattern,
-      })
-      .then(() => {
-        status.style.display = "block";
-        setTimeout(() => {
-          status.style.display = "none";
-        }, 2000);
-      });
+  document.getElementById("resetForm").addEventListener("click", () => {
+    document.getElementById("newDomain").value = "";
+    document.getElementById("matchPattern").value = "";
+    document.getElementById("replacePattern").value = "";
+    showStatus("Form reset successfully");
   });
+
+  // Listen for system theme changes
+  window
+    .matchMedia("(prefers-color-scheme: dark)")
+    .addEventListener("change", () => {
+      if (document.documentElement.getAttribute("data-theme") === "system") {
+        setTheme("system");
+      }
+    });
+
+  // Initial load
+  updateDomainsList();
 });
